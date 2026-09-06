@@ -81,7 +81,7 @@
             background: #ffffff;
             padding: 20px; 
             overflow-y: auto; 
-            overflow-x: auto;
+            overflow-x: hidden;
             font-family: 'Consolas', 'Courier New', monospace; 
             font-size: 15px; 
             line-height: 1.6; 
@@ -132,7 +132,7 @@
         <div id="stats">
             <span>MASA: <b id="tChars">0</b></span>
             <span>SEL: <b id="sChars">0</b></span>
-            <span>MOLDE: <b id="mChars">---</b></span>
+            <span>MOLDE: <b id="mChars">70</b></span>
         </div>
 
         <div id="editor" contenteditable="true" aria-label="Editor de texto del procesador SLER">Cargue .txt, .docx o .odt para iniciar el procesamiento SLER...</div>
@@ -159,26 +159,10 @@
         const ed = document.getElementById('editor');
         const tLab = document.getElementById('tChars'), sLab = document.getElementById('sChars'), mLab = document.getElementById('mChars');
         const fIn = document.getElementById('fIn');
-        let backup = "", maxM = 0, esSlerActivo = false;
+        let backup = "", maxM = 70, esSlerActivo = false;
 
-        // 1. Calibración precisa al ancho interior del editor
-        function cal() {
-            const span = document.createElement('span');
-            span.style.font = window.getComputedStyle(ed).font;
-            span.style.visibility = 'hidden';
-            span.style.position = 'absolute';
-            span.innerText = "W"; 
-            document.body.appendChild(span);
-            
-            // Restar exactamente el padding horizontal del contenedor (20px + 20px = 40px)
-            const innerWidth = ed.clientWidth - 40;
-            maxM = Math.floor(innerWidth / span.offsetWidth);
-            if (maxM < 20) maxM = 50;
-            mLab.innerText = maxM; 
-            document.body.removeChild(span);
-        }
-        setTimeout(cal, 200);
-        window.onresize = cal;
+        // Fijar molde predeterminado exacto en 70 (o el que tenías en tu aplicación de escritorio)
+        mLab.innerText = maxM;
 
         // 2. Estadísticas
         function update() {
@@ -227,7 +211,7 @@
             return sCierre + limpia + sApertura;
         }
 
-        // 5. Render S.L.E.R. con Ley de Guionado M/C (Intacto)
+        // 5. Render S.L.E.R. con Ley de Guionado M/C (Intacto, usando molde fijo de 70)
         function render(modo) {
             let txt = backup || ed.innerText;
             if (!txt.trim()) return;
