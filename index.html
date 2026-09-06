@@ -81,7 +81,7 @@
             background: #ffffff;
             padding: 20px; 
             overflow-y: auto; 
-            overflow-x: hidden;
+            overflow-x: auto;
             font-family: 'Consolas', 'Courier New', monospace; 
             font-size: 15px; 
             line-height: 1.6; 
@@ -161,13 +161,21 @@
         const fIn = document.getElementById('fIn');
         let backup = "", maxM = 0, esSlerActivo = false;
 
-        // 1. Calibración
+        // 1. Calibración precisa al ancho interior del editor
         function cal() {
             const span = document.createElement('span');
-            span.style.font = "15px 'Consolas', monospace";
-            span.innerText = "W"; document.body.appendChild(span);
-            maxM = Math.floor((ed.clientWidth - 40) / span.offsetWidth);
-            mLab.innerText = maxM; document.body.removeChild(span);
+            span.style.font = window.getComputedStyle(ed).font;
+            span.style.visibility = 'hidden';
+            span.style.position = 'absolute';
+            span.innerText = "W"; 
+            document.body.appendChild(span);
+            
+            // Restar exactamente el padding horizontal del contenedor (20px + 20px = 40px)
+            const innerWidth = ed.clientWidth - 40;
+            maxM = Math.floor(innerWidth / span.offsetWidth);
+            if (maxM < 20) maxM = 50;
+            mLab.innerText = maxM; 
+            document.body.removeChild(span);
         }
         setTimeout(cal, 200);
         window.onresize = cal;
@@ -219,7 +227,7 @@
             return sCierre + limpia + sApertura;
         }
 
-        // 5. Render S.L.E.R. con Ley de Guionado M/C
+        // 5. Render S.L.E.R. con Ley de Guionado M/C (Intacto)
         function render(modo) {
             let txt = backup || ed.innerText;
             if (!txt.trim()) return;
