@@ -2,208 +2,163 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>SLER Visual Lab - Nodo Bell Ville</title>
+    <title>Procesador S.L.E.R.</title>
     <style>
-        :root { --accent: #000; --bg: #fff; --sler-blue: #0ea5e9; }
-        * { box-sizing: border-box; }
-        body { font-family: monospace; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* Lateral Derecha */
-        .results-sidebar { 
-            width: 300px; border-left: 1px solid #eee; padding: 40px 20px; 
-            order: 2; display: flex; flex-direction: column; gap: 20px;
+        body { width: 520px; padding: 10px; font-family: sans-serif; background: #eceff1; margin: 0; }
+        #stats { 
+            background: #263238; color: #fff; padding: 8px; font-size: 11px; 
+            display: flex; justify-content: space-between; border-bottom: 3px solid #00acc1;
         }
-        .bin-entry { font-size: 13px; color: #999; line-height: 1.6; }
-        .bin-entry.active { color: #000; font-weight: bold; }
-
-        /* Área Central */
-        .main-content { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 40px; overflow-y: auto; }
-        .header { width: 100%; max-width: 650px; border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; }
-        
-        .timers { display: flex; gap: 50px; margin-bottom: 20px; }
-        .timer-box { text-align: center; width: 120px; }
-        .timer-val { font-size: 28px; font-weight: bold; font-variant-numeric: tabular-nums; }
-        .label { font-size: 10px; text-transform: uppercase; color: #666; letter-spacing: 1px; }
-
-        .training-box { 
-            width: 100%; max-width: 650px; min-height: 380px;
-            padding: 20px; font-size: 21px; line-height: 1.8;
-            font-weight: bold; background: #fff; display: none; margin-bottom: 20px;
-            text-align: left;
+        #editor { 
+            width: 100%; height: 400px; border: 1px solid #cfd8dc; background: #fff;
+            padding: 15px; overflow-y: auto; overflow-x: hidden;
+            font-family: 'Consolas', 'Courier New', monospace; 
+            font-size: 15px; line-height: 1.5; color: #212121;
+            white-space: pre; box-sizing: border-box; display: block; outline: none;
         }
-        .line-box { white-space: pre; display: block; height: 1.8em; }
-
-        .controls { margin-top: 10px; margin-bottom: 30px; }
-        button { 
-            padding: 15px 60px; cursor: pointer; font-family: monospace; font-weight: bold; 
-            background: #000; color: #fff; border: none; font-size: 16px;
-        }
-        button:hover { background: var(--sler-blue); }
-        
-        #resultsTable { width: 100%; max-width: 650px; border-collapse: collapse; margin-top: 20px; display: none; }
-        #resultsTable th, #resultsTable td { border: 1px solid #000; padding: 12px; text-align: center; font-size: 14px; }
+        .controls { display: flex; gap: 5px; padding: 10px 0; }
+        button { padding: 10px; cursor: pointer; border: none; border-radius: 4px; color: #fff; font-weight: bold; flex: 1; }
+        #btnL { background: #546e7a; } #btnA { background: #0288d1; }
+        #btnS { background: #43a047; } #btnD { background: #607d8b; }
+        .sler-line { display: block; width: 100%; text-align: left; }
+        b { color: #00e5ff; }
     </style>
 </head>
 <body>
+    <div id="stats">
+        <span>MASA: <b id="tChars">0</b></span>
+        <span>SEL: <b id="sChars">0</b></span>
+        <span>MOLDE: <b id="mChars">---</b></span>
+    </div>
+    <div id="editor" contenteditable="true">Cargue .txt, .docx o .odt para iniciar...</div>
+    <div class="controls">
+        <input type="file" id="fIn" style="display:none" accept=".txt,.docx,.odt">
+        <button id="btnL">📁 CARGAR</button>
+        <button id="btnA">🧱 APLANAR</button>
+        <button id="btnS">🚀 S.L.E.R.</button>
+        <button id="btnD">💾 TXT</button>
+    </div>
 
-    <main class="main-content">
-        <div class="header">
-            <span class="label">SLER LAB: NIVEL <span id="lvlDisplay">1</span></span>
-            <span class="label">ISOMETRÍA 2-4-6-10</span>
-        </div>
+    <script src="jszip.min.js"></script>
+    <script src="mammoth.browser.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ed = document.getElementById('editor');
+        const tLab = document.getElementById('tChars'), sLab = document.getElementById('sChars'), mLab = document.getElementById('mChars');
+        const fIn = document.getElementById('fIn');
+        let backup = "", maxM = 0, esSlerActivo = false;
 
-        <div class="timers">
-            <div class="timer-box">
-                <div class="label">ESTÁNDAR</div>
-                <div id="timerStd" class="timer-val">0.000s</div>
-            </div>
-            <div class="timer-box" id="slerTimerCont" style="opacity: 0.1;">
-                <div class="label">SLER</div>
-                <div id="timerSler" class="timer-val">0.000s</div>
-            </div>
-        </div>
-
-        <div id="exerciseBox" class="training-box"></div>
-
-        <div class="controls">
-            <button id="mainBtn" onclick="handleFlow()">Iniciar</button>
-        </div>
-
-        <table id="resultsTable">
-            <thead>
-                <tr><th>Nivel</th><th>Renglones</th><th>Std (s)</th><th>SLER (s)</th><th>Mejoría</th></tr>
-            </thead>
-            <tbody id="statsBody"></tbody>
-        </table>
-    </main>
-
-    <aside class="results-sidebar">
-        <div class="label" style="margin-bottom: 10px;">BINOMIOS PARCIALES</div>
-        <div id="bin-1" class="bin-entry">N1: ---</div>
-        <div id="bin-2" class="bin-entry">N2: ---</div>
-        <div id="bin-3" class="bin-entry">N3: ---</div>
-        <div id="bin-4" class="bin-entry">N4: ---</div>
-    </aside>
-
-<script>
-    let startTime, timerInterval;
-    let currentLvl = 1;
-    let mode = 'IDLE'; 
-    const LIMITE = 42; 
-    let finalResults = [];
-
-    // Textos calibrados para generar exactamente 2, 4, 6 y 10 renglones
-    const texts = [
-        /* 2 Renglones */
-        "El ojo ve la luz hoy. Es un gran modo de ver el mar fiel y azul.",
-        /* 4 Renglones */
-        "Leer es un gran plan. Cada paso es un reto hoy. El modo SLER es muy util para ver. Ven y mira el sol con fe en este dia de paz.",
-        /* 6 Renglones */
-        "Un buen texto es clave. No hay duda de su gran valor real. El flujo es veloz en el modo que ves hoy. Todo va muy bien aqui. Lee con fe y gana luz en cada paso de este test. Es para tu mente.",
-        /* 10 Renglones */
-        "Si el ojo va y ve bien, todo fluye en paz. No hay saltos ni error en el plan. Es un gran avance para tu mente. Lee con fe y gana luz en cada paso. Ver es vivir cada dia mas. El fin es real y muy fiel. Ten fe y mira el sol. Es un gran reto hoy. Busca tu luz. Todo va muy bien aqui. El modo es real."
-    ];
-
-    function tratarSignos(w, inv) {
-        if (!inv) return w;
-        let p = w.match(/^[.,;:]+/), s = w.match(/[.,;:]+$/);
-        let base = w.replace(/^[.,;:]+|[.,;:]+$/g, '');
-        return (s ? s[0] : '') + base + (p ? p[0] : '');
-    }
-
-    function motorFinal(texto, aplicarSler = false) {
-        let mazo = texto.replace(/\s+/g, ' ').trim().split(' ');
-        let res = "", par = false;
-
-        while (mazo.length > 0) {
-            let lin = "";
-            while (mazo.length > 0 && (lin.length + mazo[0].length + (lin ? 1 : 0)) <= LIMITE) {
-                lin += (lin ? " " : "") + mazo.shift();
-            }
-
-            if (aplicarSler && par) {
-                let inv = lin.split(' ').map(w => tratarSignos(w, true)).reverse().join(' ');
-                let slerPad = " ".repeat(Math.max(0, LIMITE - inv.length));
-                res += `<div class="line-box">${slerPad}${inv}</div>`;
-            } else {
-                res += `<div class="line-box">${lin}</div>`;
-            }
-            par = !par;
+        // 1. Calibración
+        function cal() {
+            const span = document.createElement('span');
+            span.style.font = "15px 'Consolas', monospace";
+            span.innerText = "W"; document.body.appendChild(span);
+            maxM = Math.floor((ed.clientWidth - 40) / span.offsetWidth);
+            mLab.innerText = maxM; document.body.removeChild(span);
         }
-        return res;
-    }
+        setTimeout(cal, 200);
 
-    function handleFlow() {
-        const btn = document.getElementById('mainBtn');
-        const box = document.getElementById('exerciseBox');
-        if (mode === 'IDLE') {
-            mode = 'RUN_STD';
-            box.innerHTML = motorFinal(texts[currentLvl-1], false);
-            box.style.display = 'block';
-            btn.innerText = "Detener";
-            startClock('timerStd');
-        } else if (mode === 'RUN_STD') {
-            stopClock();
-            mode = 'WAIT_SLER';
-            box.style.display = 'none';
-            btn.innerText = "Iniciar SLER";
-            document.getElementById('slerTimerCont').style.opacity = "1";
-        } else if (mode === 'WAIT_SLER') {
-            mode = 'RUN_SLER';
-            box.innerHTML = motorFinal(texts[currentLvl-1], true);
-            box.style.display = 'block';
-            btn.innerText = "Detener";
-            startClock('timerSler');
-        } else if (mode === 'RUN_SLER') {
-            stopClock();
-            saveStats();
-            if (currentLvl < 4) { currentLvl++; resetForNext(); } 
-            else { showFinal(); }
+        // 2. Estadísticas
+        function update() {
+            tLab.innerText = ed.innerText.length;
+            const sel = window.getSelection().toString().length;
+            if(sLab) sLab.innerText = sel; 
         }
-    }
+        document.addEventListener('selectionchange', update);
+        ed.oninput = update;
 
-    function startClock(id) {
-        startTime = performance.now();
-        timerInterval = setInterval(() => {
-            document.getElementById(id).innerText = ((performance.now() - startTime) / 1000).toFixed(3) + "s";
-        }, 10);
-    }
+        // 3. Carga Multiformato
+        document.getElementById('btnL').onclick = () => fIn.click();
+        fIn.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const ext = file.name.split('.').pop().toLowerCase();
+            const reader = new FileReader();
+            reader.onload = async (le) => {
+                try {
+                    if (ext === 'docx') {
+                        const res = await mammoth.extractRawText({arrayBuffer: le.target.result});
+                        ed.innerText = res.value;
+                    } else if (ext === 'odt') {
+                        const zip = await JSZip.loadAsync(le.target.result);
+                        const xml = await zip.file("content.xml").async("string");
+                        ed.innerText = new DOMParser().parseFromString(xml, "text/xml").documentElement.textContent;
+                    } else {
+                        ed.innerText = new TextDecoder().decode(le.target.result);
+                    }
+                    backup = ed.innerText; esSlerActivo = false; update();
+                } catch (err) { alert("Error: " + err.message); }
+            };
+            reader.readAsArrayBuffer(file);
+        };
 
-    function stopClock() { clearInterval(timerInterval); }
+        // 4. Motor Semántico
+        function tratarSignos(palabra, inverso) {
+            if (!inverso) return palabra;
+            const inicioMatch = palabra.match(/^([¿¡]+)/);
+            const finMatch = palabra.match(/([.,;!?]+)$/);
+            let limpia = palabra;
+            let sApertura = inicioMatch ? inicioMatch[1] : "";
+            let sCierre = finMatch ? finMatch[1] : "";
+            if (sApertura) limpia = limpia.substring(sApertura.length);
+            if (sCierre) limpia = limpia.substring(0, limpia.length - sCierre.length);
+            return sCierre + limpia + sApertura;
+        }
 
-    function saveStats() {
-        const std = document.getElementById('timerStd').innerText;
-        const sler = document.getElementById('timerSler').innerText;
-        const lines = document.getElementById('exerciseBox').querySelectorAll('.line-box').length;
-        finalResults.push({ lvl: currentLvl, lines, std, sler });
-        const entry = document.getElementById(`bin-${currentLvl}`);
-        entry.innerHTML = `N${currentLvl} (${lines}R): STD ${std} | SLER ${sler}`;
-        entry.classList.add('active');
-    }
+        // 5. Render S.L.E.R. con Ley de Guionado M/C
+        function render(modo) {
+            let txt = backup || ed.innerText;
+            if (!txt.trim()) return;
+            backup = txt;
+            let mazo = txt.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+            let res = "", par = false;
 
-    function resetForNext() {
-        mode = 'IDLE';
-        document.getElementById('exerciseBox').style.display = 'none';
-        document.getElementById('lvlDisplay').innerText = currentLvl;
-        document.getElementById('timerStd').innerText = "0.000s";
-        document.getElementById('timerSler').innerText = "0.000s";
-        document.getElementById('slerTimerCont').style.opacity = "0.1";
-        document.getElementById('mainBtn').innerText = "Iniciar";
-    }
+            while (mazo.length > 0) {
+                let lin = "";
+                while (mazo.length > 0 && (lin.length + mazo[0].length + 1) <= maxM) {
+                    lin += (lin ? " " : "") + mazo.shift();
+                }
+                
+                let h = maxM - lin.length;
+                if (h >= 2 && mazo.length > 0) {
+                    let p = mazo[0], c = h - 1;
+                    if (!par) {
+                        lin += (lin ? " " : "") + p.substring(0, c) + "-";
+                    } else {
+                        lin += (lin ? " " : "") + "-" + p.substring(0, c);
+                    }
+                    mazo[0] = p.substring(c);
+                }
 
-    function showFinal() {
-        document.getElementById('exerciseBox').style.display = 'none';
-        document.getElementById('mainBtn').innerText = "Test Finalizado";
-        document.getElementById('mainBtn').disabled = true;
-        const table = document.getElementById('resultsTable');
-        const body = document.getElementById('statsBody');
-        table.style.display = 'table';
-        finalResults.forEach(r => {
-            let s1 = parseFloat(r.std), s2 = parseFloat(r.sler);
-            let imp = (((s1 - s2) / s1) * 100).toFixed(1) + "%";
-            body.innerHTML += `<tr><td>${r.lvl}</td><td>${r.lines}</td><td>${r.std}</td><td>${r.sler}</td><td>${imp}</td></tr>`;
-        });
-    }
-</script>
+                if (modo === 'sler' && par) {
+                    let inv = lin.split(' ').map(w => tratarSignos(w, true)).reverse().join(' ');
+                    let padding = " ".repeat(Math.max(0, maxM - inv.length));
+                    res += `<div class="sler-line">${padding}${inv}</div>`;
+                } else {
+                    res += `<div>${lin}</div>`;
+                }
+                par = !par;
+            }
+            ed.innerHTML = res;
+        }
+
+        document.getElementById('btnA').onclick = () => render('normal');
+        document.getElementById('btnS').onclick = () => {
+            if (esSlerActivo) { ed.innerText = backup; esSlerActivo = false; } 
+            else { render('sler'); esSlerActivo = true; }
+        };
+
+        document.getElementById('btnD').onclick = () => {
+            let conf = prompt("Confirmar ancho de molde:", maxM);
+            if (!conf) return;
+            let out = "REGISTRO INTELECTUAL 2025 - S.L.E.R. - RIBOT JONATAN\n\n" + ed.innerText;
+            let blob = new Blob([out], {type: 'text/plain'});
+            let a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `sler_m${conf}.txt`;
+            a.click();
+        };
+    });
+    </script>
 </body>
 </html>
